@@ -203,7 +203,6 @@ export default class FbtFunctionCallProcessor {
     // 1st argument - Sentinel Payload
     const argsOutput = JSON.stringify({
       jsfbt: phrase.jsfbt,
-      // $FlowFixMe[incompatible-cast]
       project: phrase.project,
     } as SentinelPayload);
     const encodedOutput =
@@ -780,8 +779,8 @@ export default class FbtFunctionCallProcessor {
     } as const;
     // delete nullish options
     for (const k in ret) {
-      if (ret[k] == null) {
-        delete ret[k];
+      if (ret[k as keyof typeof ret] == null) {
+        delete ret[k as keyof typeof ret];
       }
     }
     return ret;

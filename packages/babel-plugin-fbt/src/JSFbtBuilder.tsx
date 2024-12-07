@@ -293,10 +293,6 @@ export default class JSFbtBuilder {
       const argCode = curArg.getArgCode(this.fileSource);
 
       if (argCode in usedPronouns) {
-        // Constrain our pronoun value BUT still add a
-        // single level.  We don't currently prune runtime args like we do
-        // with enums, but we ought to...
-        // TODO(T82185334) Prune pronouns better
         recurse([usedPronouns[argCode]]);
         return combos;
       }
@@ -311,6 +307,7 @@ export default class JSFbtBuilder {
       curArg instanceof GenderStringVariationArg
     ) {
       recurse(
+        // @ts-expect-error
         curArg.candidateValues,
         undefined,
         curArg instanceof GenderStringVariationArg &&

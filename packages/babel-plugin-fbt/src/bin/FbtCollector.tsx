@@ -97,7 +97,6 @@ export default class FbtCollector implements IFbtCollector {
       const transform = require('@fbtjs/default-collection-transform');
       transform(
         source,
-        // $FlowFixMe[incompatible-exact]
         options,
         this._config.plugins || [],
         this._config.presets || []

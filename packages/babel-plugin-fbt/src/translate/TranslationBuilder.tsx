@@ -240,13 +240,13 @@ export default class TranslationBuilder {
     const table: TranslationTree = {};
     for (const key in hashOrTable) {
       const branchOrLeaf = hashOrTable[key];
-      let trans: TranslationTree = this._buildRecursive(
+      let translation: TranslationTree = this._buildRecursive(
         branchOrLeaf,
         tokenConstraints,
         levelIdx + 1
       );
-      if (_shouldStore(trans)) {
-        table[key] = trans;
+      if (_shouldStore(translation)) {
+        table[key] = translation as TranslationLeaf;
       }
 
       // This level will have metadata if it could potentially have variations.
@@ -284,13 +284,13 @@ export default class TranslationBuilder {
         const variationCandidates = _getTypesFromMask(mask);
         variationCandidates.forEach((variationKey) => {
           tokenConstraints[token] = variationKey;
-          trans = this._buildRecursive(
+          translation = this._buildRecursive(
             branchOrLeaf,
             tokenConstraints,
             levelIdx + 1
           );
-          if (_shouldStore(trans)) {
-            table[String(variationKey)] = trans;
+          if (_shouldStore(translation)) {
+            table[String(variationKey)] = translation as TranslationLeaf;
           }
         });
         delete tokenConstraints[token];
@@ -533,7 +533,10 @@ export default class TranslationBuilder {
 function _shouldStore(branch: TranslationTree): boolean {
   return (
     branch != null &&
-    (typeof branch === 'string' || Array.isArray(branch) || hasKeys(branch))
+    (typeof branch === 'string' ||
+      typeof branch === 'number' ||
+      Array.isArray(branch) ||
+      hasKeys(branch))
   );
 }
 

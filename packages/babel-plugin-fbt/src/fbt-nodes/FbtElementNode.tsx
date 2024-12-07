@@ -143,11 +143,6 @@ export default class FbtElementNode
     const rawOptions = collectOptionsFromFbtConstruct(
       this.moduleName,
       node,
-      /**
-       * $FlowFixMe - For some reason flow is comparing the value of `allValidOptions`
-       * , which is of boolean type, with the first branch of `FbtOptionConfig<K>`
-       * which is an object
-       */
       allValidOptions,
       FbtBooleanOptions
     );
@@ -202,17 +197,16 @@ export default class FbtElementNode
     instance: FbtElementNode | FbtImplicitParamNodeType,
     subject?: Node | null
   ): ReadonlyArray<AnyStringVariationArg> {
-    return (
-      isNode(subject)
+    return [
+      ...(isNode(subject)
         ? [new GenderStringVariationArg(instance, subject, [GENDER_ANY])]
-        : []
-    ).concat(
-      ...instance.children.map((c) => c.getArgsForStringVariationCalc())
-    );
+        : []),
+      ...instance.children.flatMap((c) => c.getArgsForStringVariationCalc()),
+    ];
   }
 
   override getArgsForStringVariationCalc(): ReadonlyArray<AnyStringVariationArg> {
-    return this.constructor.getArgsForStringVariationCalcForFbtElement(
+    return FbtElementNode.getArgsForStringVariationCalcForFbtElement(
       this,
       this.options.subject
     );
@@ -240,7 +234,7 @@ export default class FbtElementNode
    * @throws if some fbt nodes in the tree have duplicate token names
    */
   _beforeGetTextSanityCheck(argsMap: StringVariationArgsMap): void {
-    this.constructor.beforeGetTextSanityCheck(this, argsMap);
+    FbtElementNode.beforeGetTextSanityCheck(this, argsMap);
   }
 
   override getText(argsMap: StringVariationArgsMap): string {
@@ -420,7 +414,9 @@ export default class FbtElementNode
     setUniqueToken(source.node, this.moduleName, name, this._tokenSet);
   }
 
-  static __compactTokenSet(obj: unknown): unknown {
+  static __compactTokenSet(
+    obj: Record<string, unknown> & { _tokenSet?: Record<string, unknown> }
+  ): unknown {
     invariant(
       obj &&
         typeof obj === 'object' &&
@@ -434,7 +430,7 @@ export default class FbtElementNode
 
   override toJSON(): unknown {
     const ret = super.toJSON();
-    return this.constructor.__compactTokenSet(ret);
+    return FbtElementNode.__compactTokenSet(ret as Record<string, unknown>);
   }
 
   assertNoOverallTokenNameCollision(

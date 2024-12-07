@@ -136,7 +136,6 @@ module.exports = function BabelPluginFbtRuntime(
       const opts = getPluginOptions(visitor);
       visitor.opts.fbtSentinel = opts.fbtSentinel || SENTINEL;
       if (opts.fbtHashKeyModule) {
-        // $FlowExpectedError[unsupported-syntax] Dynamic import needed
         fbtHashKey = require(opts.fbtHashKeyModule);
       }
     },

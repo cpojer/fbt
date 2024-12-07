@@ -374,17 +374,18 @@ export default class JSXFbtProcessor {
 const jsxFbtConstructToFunctionalFormTransform = {
   JSXElement(path: NodePath) {
     const { node } = path;
-    const moduleName = this.moduleName as JSModuleNameType;
+    const { moduleName } = this as unknown as { moduleName: JSModuleNameType };
     const name = validateNamespacedFbtElement(
       moduleName,
       node.openingElement.name
     );
     if (name !== 'implicitParamMarker') {
       const args = getNamespacedArgs(moduleName)[name](node);
-      let fbtConstructCall = callExpression(
-        memberExpression(identifier(moduleName), identifier(name), false),
-        args
-      );
+      let fbtConstructCall: CallExpression | JSXExpressionContainer =
+        callExpression(
+          memberExpression(identifier(moduleName), identifier(name), false),
+          args
+        );
       if (isJSXElement(path.parent)) {
         fbtConstructCall = jsxExpressionContainer(fbtConstructCall);
       }

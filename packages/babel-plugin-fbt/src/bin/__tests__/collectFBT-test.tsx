@@ -20,7 +20,6 @@ describe('collectFbt', () => {
       genOuterTokenName?: boolean;
       customCollector?: string;
       packagerType?: string;
-      terse?: boolean;
       genFbtNodes?: boolean;
     } = {}
   ) {
@@ -42,7 +41,6 @@ describe('collectFbt', () => {
     }
 
     const output = buildCollectFbtOutput(fbtCollector, packagers, {
-      terse: !!options.terse,
       genFbtNodes: !!options.genFbtNodes,
     });
     // Mimic collectFbt output: strip undefined fields, and normalize objects

@@ -87,7 +87,6 @@ const args = {
   PLUGINS: 'plugins',
   PRESETS: 'presets',
   PRETTY: 'pretty',
-  TERSE: 'terse',
   TRANSFORM: 'transform',
 } as const;
 
@@ -104,24 +103,7 @@ const argv = yargs
       "  'both' - Both phrase and text hashing are performed\n" +
       "  'none' - No hashing or alteration of phrase data\n"
   )
-  .choices(
-    args.PACKAGER,
-    // $FlowFixMe[incompatible-cast] needed because Object.values() returns mixed only...
-    Object.values(packagerTypes) as Array<
-      (typeof packagerTypes)[keyof typeof packagerTypes]
-    >
-  )
-  .boolean(args.TERSE)
-  .default(args.TERSE, false)
-  .describe(
-    args.TERSE,
-    'By default, we output the entirety of the fbt callsite including ' +
-      'auxiliary jsfbt table and metadata.  Set to to true to output only ' +
-      'hashes, texts, and descriptions of the fbt callsite. The goal being ' +
-      'to minify the amount of I/O processing needed for scraping source ' +
-      'into a data store to share with translators, where this auxiliary data ' +
-      "isn't necessary."
-  )
+  .choices(args.PACKAGER, Object.values(packagerTypes))
   .describe(args.HELP, 'Display usage message')
   .alias(args.HELP, 'help')
   .boolean(args.MANIFEST)
@@ -225,7 +207,7 @@ function processJsonSource(source: string) {
     if (fs.existsSync(manifest_path)) {
       manifest = require(path.resolve(process.cwd(), manifest_path));
     }
-    const sources = [];
+    const sources: Array<[string, string]> = [];
     for (const file of json[manifest_path]) {
       sources.push([file, fs.readFileSync(file, 'utf8')]);
     }
@@ -234,9 +216,11 @@ function processJsonSource(source: string) {
 }
 
 function writeOutput() {
-  const packagers = getPackagers(argv[args.PACKAGER], argv[args.HASH]);
+  const packagers = getPackagers(
+    argv[args.PACKAGER] || 'text',
+    argv[args.HASH]
+  );
   const output = buildCollectFbtOutput(fbtCollector, packagers, {
-    terse: argv[args.TERSE],
     genFbtNodes: argv[args.GEN_FBT_NODES],
   });
   process.stdout.write(

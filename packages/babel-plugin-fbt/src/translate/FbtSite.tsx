@@ -4,11 +4,7 @@ import type { TokenAliases } from '..';
 import type { PatternHash, PatternString } from '../../../fbt/src/FbtTable';
 import type { CollectFbtOutputPhrase } from '../bin/collectFbt';
 import { objMap } from '../FbtUtil';
-import type {
-  JSFBTMetaEntry,
-  TableJSFBTTree,
-  TableJSFBTTreeBranch,
-} from '../index';
+import type { JSFBTMetaEntry, TableJSFBTTree } from '../index';
 import { coerceToTableJSFBTTreeLeaf, onEachLeaf } from '../JSFbtUtil';
 import type {
   FbtSiteHashifiedTableJSFBTTree,
@@ -125,10 +121,8 @@ export class FbtSite extends FbtSiteBase<
     const leaf = coerceToTableJSFBTTreeLeaf(entry);
     return leaf != null
       ? textAndDescToHash[this._serializeTextAndDesc(leaf.text, leaf.desc)]
-      : objMap(
-          // $FlowExpectedError[incompatible-cast] `entry` must be TableJSFBTTreeBranch type
-          entry as Readonly<TableJSFBTTreeBranch>,
-          (branch) => FbtSite._hashifyLeaves(branch, textAndDescToHash)
+      : objMap(entry, (branch) =>
+          FbtSite._hashifyLeaves(branch, textAndDescToHash)
         );
   }
 

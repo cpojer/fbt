@@ -102,7 +102,7 @@ function processGroups(
   let fbtHash: typeof FbtHashKey | null | undefined = null;
   if (options.jenkins) {
     fbtHash = require('../fbtHashKey');
-  } else if (options.hashModule !== false) {
+  } else if (typeof options.hashModule === 'string') {
     fbtHash = require(options.hashModule);
   }
 

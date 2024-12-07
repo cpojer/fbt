@@ -13,9 +13,10 @@ import {
 } from '@babel/types';
 import invariant from 'invariant';
 import nullthrows from 'nullthrows';
-import { FBT_ENUM_MODULE_SUFFIX } from '../FbtConstants';
+import { FBT_ENUM_MODULE_SUFFIX, JSModuleNameType } from '../FbtConstants';
 import type { EnumModule } from '../FbtEnumRegistrar';
 import FbtEnumRegistrar from '../FbtEnumRegistrar';
+import FbtNodeChecker from '../FbtNodeChecker';
 import type { CallExpressionArg } from '../FbtUtil';
 import {
   createFbtRuntimeArgCallExpression,
@@ -28,8 +29,6 @@ import type { StringVariationArgsMap } from './FbtArguments';
 import { EnumStringVariationArg } from './FbtArguments';
 import FbtNode from './FbtNode';
 import { FbtNodeType } from './FbtNodeType';
-import type { FromBabelNodeFunctionArgs } from './FbtNodeUtil';
-import { createInstanceFromFbtConstructCallsite } from './FbtNodeUtil';
 
 type Options = {
   range: EnumModule; // key/value pairs to use for this fbt:enum,
@@ -50,15 +49,21 @@ export default class FbtEnumNode extends FbtNode<
 > {
   static readonly type: FbtNodeType = FbtNodeType.Enum;
 
-  /**
-   * Create a new class instance given a BabelNode root node.
-   * If that node is incompatible, we'll just return `null`.
-   */
   static fromBabelNode({
     moduleName,
     node,
-  }: FromBabelNodeFunctionArgs): FbtEnumNode | null | undefined {
-    return createInstanceFromFbtConstructCallsite(moduleName, node, this);
+  }: {
+    moduleName: JSModuleNameType;
+    node: CallExpression;
+  }): FbtEnumNode | null {
+    const checker = FbtNodeChecker.forModule(moduleName);
+    const constructName = checker.getFbtConstructNameFromFunctionCall(node);
+    return constructName === FbtEnumNode.type
+      ? new FbtEnumNode({
+          moduleName,
+          node,
+        })
+      : null;
   }
 
   override getOptions(): Options {
@@ -100,7 +105,6 @@ export default class FbtEnumNode extends FbtNode<
               isIdentifier(keyNode) && prop.computed === false,
               'Enum keys must be string literals instead of `%s` ' +
                 'when using an object with computed property names',
-              // $FlowFixMe[incompatible-use] BabelNode child classes have a "type" property
               keyNode.type
             );
             range[keyNode.name] = valueNode.value;

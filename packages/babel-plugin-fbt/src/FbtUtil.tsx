@@ -32,7 +32,7 @@ import BabelTypes, {
   isTemplateLiteral,
   JSXAttribute,
   JSXElement,
-  JSXNamespacedName,
+  JSXExpressionContainer,
   JSXOpeningElement,
   JSXSpreadAttribute,
   JSXText,
@@ -65,10 +65,10 @@ import type { TokenAliases } from './index';
 type BabelNodeJSXAttributes = ReadonlyArray<
   JSXOpeningElement['attributes'][number]
 >;
+
 export type CallExpressionArg =
   | Expression
   | SpreadElement
-  | JSXNamespacedName
   | ArgumentPlaceholder;
 export type BabelNodeCallExpressionArgument =
   CallExpression['arguments'][number];
@@ -184,7 +184,7 @@ export function setUniqueToken(
 
 export function checkOption<K extends string>(
   option: string,
-  validOptions: FbtOptionConfig<K>,
+  validOptions: FbtOptionConfig,
   value?: Node | null | undefined | string | boolean
 ): K {
   const optionName = option as K;
@@ -242,31 +242,39 @@ function canBeShortBoolAttr(name: string) {
  */
 export function getOptionsFromAttributes(
   t: typeof BabelTypes,
-  attributesNode: Array<JSXAttribute | JSXSpreadAttribute>,
+  attributesNode: ReadonlyArray<JSXAttribute | JSXSpreadAttribute>,
   validOptions: any,
-  ignoredAttrs: any
+  ignoredAttrs: Record<string, unknown>
 ): ObjectExpression {
   const options: Array<ObjectMethod | ObjectProperty | SpreadElement> = [];
 
   for (const node of attributesNode) {
-    const option = node.name.name;
+    if (isJSXSpreadAttribute(node)) {
+      continue;
+    }
 
+    const name = node.name.type === 'JSXIdentifier' ? node.name.name : null;
+    if (!name) {
+      continue;
+    }
     // Required attributes are passed as a separate argument in the fbt(...)
     // call, because they're required. They're not passed as options.
     // Ignored attributes are simply stripped from the function call entirely
     // and ignored.  By default, we ignore all "private" attributes with a
     // leading '__' like '__source' and '__self' as added by certain
     // babel/react plugins
-    if (ignoredAttrs[option] || option.startsWith('__')) {
+    if (ignoredAttrs[name] || name.startsWith('__')) {
       continue;
     }
 
-    let value = node.value;
-    const name = node.name.name;
-
+    let value: Expression | JSXExpressionContainer | null | undefined =
+      node.value;
     if (value === null && canBeShortBoolAttr(String(name))) {
       value = booleanLiteral(true);
-    } else if (isJSXExpressionContainer(value)) {
+    } else if (
+      isJSXExpressionContainer(value) &&
+      !isJSXEmptyExpression(value.expression)
+    ) {
       value = value.expression;
     } else if (
       isStringLiteral(value) &&
@@ -275,13 +283,14 @@ export function getOptionsFromAttributes(
       value = t.booleanLiteral(value.value === 'true');
     }
 
-    options.push(
-      objectProperty(
-        stringLiteral(checkOption(option, validOptions, value)),
-        // $FlowFixMe[incompatible-call]
-        value
-      )
-    );
+    if (value) {
+      options.push(
+        objectProperty(
+          stringLiteral(checkOption(name, validOptions, value)),
+          value as Expression
+        )
+      );
+    }
   }
 
   return objectExpression(options);
@@ -351,7 +360,7 @@ function createErrorMessageAtNode(
 export function collectOptions(
   moduleName: JSModuleNameType,
   options: ObjectExpression | null | undefined,
-  validOptions: ReadonlyArray<string>
+  validOptions: FbtOptionConfig
 ): FbtOptionValues {
   const key2value: FbtOptionValues = {};
   if (options == null) {
@@ -405,7 +414,7 @@ export function collectOptions(
 export function collectOptionsFromFbtConstruct(
   moduleName: JSModuleNameType,
   callsiteNode: CallExpression | null | undefined | JSXElement,
-  validOptions: ReadonlyArray<string>,
+  validOptions: FbtOptionConfig,
   booleanOptions: Partial<Record<string, unknown>> | null = null
 ): FbtOptionValues {
   let optionsNode: ObjectExpression | null | undefined = null;
@@ -511,7 +520,6 @@ export function expandStringConcat(
     `${moduleName} only accepts plain strings with params wrapped in ${moduleName}.param(...). ` +
       `See the docs at https://facebook.github.io/fbt/ for more info. ` +
       `Expected StringLiteral, TemplateLiteral, or concatenation; ` +
-      // $FlowExpectedError This BabelNode is unsupported so it may not even have a type property
       `got "${node.type}"`
   );
 }
@@ -594,26 +602,20 @@ export function getOpeningElementAttributes(
   });
 }
 
-/**
- * There exists no Object.map in JS.  We don't have Map available in transforms.
- * Just use our own native Object iteration since we know we're dealing with
- * simple objects (and dont' run the risk of iterating prototype-inherited
- * functions or keys).
- */
 export function objMap<
-  TKey extends string | number,
-  TValueIn,
-  TValueOut,
-  TObj extends Partial<Record<TKey, TValueIn>>
+  Object extends Partial<Record<Key, Value>>,
+  Key extends string | number,
+  Value,
+  ResultValue
 >(
-  object: TObj,
-  fn: (value: TValueIn, arg2: TKey) => TValueOut
-): Partial<Record<TKey, TValueOut>> {
-  const toMap: Partial<Record<TKey, TValueOut>> = {};
-  for (const k in object) {
-    toMap[k] = fn(object[k as unknown as TKey], k as unknown as TKey);
+  object: Object,
+  fn: (value: Value, arg2: Key) => ResultValue
+): Record<Key, ResultValue> {
+  const newObject: Partial<Record<Key, ResultValue>> = {};
+  for (const k of Object.keys(object)) {
+    newObject[k as Key] = fn(object[k as Key] as Value, k as Key);
   }
-  return toMap;
+  return newObject as Record<Key, ResultValue>;
 }
 
 /**
@@ -815,11 +817,11 @@ export function convertToStringArrayNodeIfNeeded(
  *     __nodeCode: "'hello'"
  *   }
  */
-export function compactBabelNodeProps<T extends Record<string, unknown>>(
-  object: T,
+export function compactBabelNodeProps(
+  object: Record<string, unknown>,
   serializeSourceCode: boolean = true
-): T {
-  const ret = { ...object } as const;
+): Record<string, unknown> {
+  const ret = { ...object };
   for (const propName of Object.keys(ret)) {
     const propValue = ret[propName];
     if (!isNode(propValue)) {
@@ -884,7 +886,7 @@ export function enforceBabelNode(
 }
 
 export function enforceBabelNodeExpression(
-  value: Node,
+  value: Node | undefined | null,
   valueDesc?: string | null
 ): Expression {
   invariant(
@@ -912,7 +914,7 @@ export function enforceBabelNodeCallExpressionArg(
 }
 
 export function enforceStringEnum<K extends string>(
-  value: Node,
+  value: string,
   keys: Partial<Record<K, any>>,
   valueDesc?: string | null
 ): K {
@@ -924,7 +926,7 @@ export function enforceStringEnum<K extends string>(
     varDump(value),
     typeof value
   );
-  return value;
+  return value as K;
 }
 
 // Given a type enforcer function, make it also accept a nullable value
@@ -948,21 +950,16 @@ const enforceBabelNodeOrNull: (
 enforceBabelNode.orNull = enforceBabelNodeOrNull;
 
 const enforceBabelNodeExpressionOrNull: (
-  value: Node,
+  value: Node | undefined | null,
   valueDesc?: string | null | undefined
 ) => Expression | null | undefined = nullableTypeCheckerFactory(
   enforceBabelNodeExpression
 );
 enforceBabelNodeExpression.orNull = enforceBabelNodeExpressionOrNull;
 
-const enforceBabelNodeCallExpressionArgOrNull: (
-  value: unknown,
-  valueDesc?: string | null | undefined
-) => CallExpressionArg | null | undefined = nullableTypeCheckerFactory(
+enforceBabelNodeCallExpressionArg.orNull = nullableTypeCheckerFactory(
   enforceBabelNodeCallExpressionArg
 );
-enforceBabelNodeCallExpressionArg.orNull =
-  enforceBabelNodeCallExpressionArgOrNull;
 
 const enforceBooleanOrNull: (
   value: unknown,
@@ -976,12 +973,7 @@ const enforceStringOrNull: (
 ) => string | null | undefined = nullableTypeCheckerFactory(enforceString);
 enforceString.orNull = enforceStringOrNull;
 
-const enforceStringEnumOrNull: <K extends string>(
-  value: unknown,
-  keys: Partial<Record<K, any>>,
-  valueDesc?: string | null | undefined
-) => K | null | undefined = nullableTypeCheckerFactory(enforceStringEnum);
-enforceStringEnum.orNull = enforceStringEnumOrNull;
+enforceStringEnum.orNull = nullableTypeCheckerFactory(enforceStringEnum);
 
 /**
  * Creates an `fbt._<<methodName>>(args)` runtime function call.
@@ -999,7 +991,11 @@ export function createFbtRuntimeArgCallExpression(
     memberExpression(
       identifier(fbtNode.moduleName),
       identifier(
-        '_' + (overrideMethodName || nullthrows(fbtNode.constructor.type))
+        '_' +
+          (overrideMethodName ||
+            nullthrows(
+              (fbtNode.constructor as unknown as { type: string }).type
+            ))
       )
     ),
     args

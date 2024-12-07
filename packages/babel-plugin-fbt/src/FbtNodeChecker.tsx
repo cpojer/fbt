@@ -68,7 +68,7 @@ export default class FbtNodeChecker {
         this.isNameOfModule(node.callee.object.name) &&
         isIdentifier(node.callee.property) &&
         typeof node.callee.property.name === 'string' &&
-        FbtNodeType[node.callee.property.name]) ||
+        FbtNodeType[node.callee.property.name as keyof typeof FbtNodeType]) ||
       null
     );
   }
@@ -93,6 +93,7 @@ export default class FbtNodeChecker {
       isMemberExpression(node.callee) &&
       this.isMemberExpression(node.callee) &&
       !node.callee.computed &&
+      node.callee.property.type === 'Identifier' &&
       node.callee.property.name === FbtNodeChecker.COMMON_STRING_METHOD_NAME
     );
   }
@@ -106,13 +107,19 @@ export default class FbtNodeChecker {
    */
   assertNoNestedFbts(node: JSXElement): void {
     const moduleName = this.moduleName;
-    node.children.forEach((child) => {
+    for (const child of node.children) {
       if (
         isJSXElement(child) &&
         (fbtChecker.isJSXElement(child) || fbsChecker.isJSXElement(child))
       ) {
-        const nestedJSXElementName = child.openingElement.name.name as string;
-        const rootJSXElementName = node.openingElement.name.name as string;
+        const nestedJSXElementName =
+          child.openingElement.name.type === 'JSXIdentifier'
+            ? child.openingElement.name.name
+            : null;
+        const rootJSXElementName =
+          node.openingElement.name.type === 'JSXIdentifier'
+            ? node.openingElement.name.name
+            : null;
 
         throw errorAt(
           child,
@@ -122,17 +129,22 @@ export default class FbtNodeChecker {
         );
       } else {
         const otherChecker = moduleName === FBT ? fbsChecker : fbtChecker;
-        if (otherChecker.isJSXNamespacedElement(child)) {
-          const jsxNamespacedName = child.openingElement.name;
+        const node = isJSXElement(child) ? child : null;
+        if (
+          node &&
+          otherChecker.isJSXNamespacedElement(node) &&
+          node.openingElement.name.type === 'JSXNamespacedName'
+        ) {
+          const name = node.openingElement.name;
           throw errorAt(
             child,
             `Don't mix <fbt> and <fbs> JSX namespaces. ` +
-              `Found a <${jsxNamespacedName.namespace.name}:${jsxNamespacedName.name.name}> ` +
+              `Found a <${name.namespace.name}:${name.name.name}> ` +
               `directly within a <${moduleName}>`
           );
         }
       }
-    });
+    }
   }
 
   static forModule(moduleName: string): FbtNodeChecker {
@@ -188,9 +200,9 @@ export default class FbtNodeChecker {
         isMemberExpression(node.callee) &&
         isIdentifier(node.callee.object) &&
         isIdentifier(node.callee.property) &&
-        [FBT, FBS, REACT_FBT].includes(node.callee.object.name) &&
+        moduleNames.has(node.callee.object.name) &&
         typeof node.callee.property.name === 'string' &&
-        FbtNodeType[node.callee.property.name]) ||
+        FbtNodeType[node.callee.property.name as keyof typeof FbtNodeType]) ||
       null
     );
   }
@@ -199,5 +211,6 @@ export default class FbtNodeChecker {
   static COMMON_STRING_METHOD_NAME: 'c' = 'c';
 }
 
+const moduleNames = new Set<string>([FBT, FBS, REACT_FBT]);
 const fbsChecker = new FbtNodeChecker(FBS);
 const fbtChecker = new FbtNodeChecker(FBT);

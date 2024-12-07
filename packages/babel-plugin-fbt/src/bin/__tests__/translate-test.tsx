@@ -45,7 +45,6 @@ describe('translate-test.js', () => {
               {
                 'fb-locale': 'fb_HX',
                 translations: {
-                  // $FlowExpectedError[incompatible-call]
                   '2dcba29d4a842c6be5d76fe996fcd9f4': null,
                 },
               },

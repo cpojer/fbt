@@ -315,10 +315,8 @@ export default class FbtNode<
       }
     }
 
-    const ret: {
-      options?: Record<any, any> | null | undefined;
-    } = {
-      ...compactBabelNodeProps(this),
+    const ret: Record<string, unknown> = {
+      ...compactBabelNodeProps(this as unknown as Record<string, unknown>),
       __stringVariationArgs: stringVariationArgs,
       // Avoid cyclic recursion issues
       parent: this.parent != null ? this.parent.constructor.name : this.parent,
@@ -341,7 +339,11 @@ export default class FbtNode<
    * NOTE: this only represents the current node but not its children!
    */
   toPlainFbtNode(): PlainFbtNode {
-    const type = FbtNodeType[this.constructor.type];
+    const type =
+      FbtNodeType[
+        (this.constructor as unknown as { type: 'string' })
+          .type as unknown as keyof typeof FbtNodeType
+      ];
     invariant(
       type != null,
       'Expected instance constructor.type property to be a string instead of `%s`',

@@ -185,16 +185,27 @@ let allMetaPhrases: Array<
  */
 let childToParent: ChildToParentMap;
 
+type Visitor = {
+  opts: PluginOptions;
+  file: { code: string; ast: { comments: ReadonlyArray<{ value: string }> } };
+};
+
+const toVisitor = (visitor: unknown): visitor is Visitor => true;
+
 export default function Transform({ types: t }: { types: typeof BabelTypes }) {
   return {
     pre() {
-      const visitor = this;
-      const pluginOptions: PluginOptions = visitor.opts;
+      const visitor = toVisitor(this) ? this : null;
+      if (!visitor) {
+        return;
+      }
+
+      const pluginOptions: PluginOptions | undefined = visitor.opts;
       pluginOptions.fbtBase64 = pluginOptions.fbtBase64;
 
       init(pluginOptions);
       FbtEnumRegistrar.setEnumManifest(getEnumManifest(pluginOptions));
-      initExtraOptions(visitor);
+      validFbtExtraOptions = pluginOptions.extraOptions || {};
       initDefaultOptions(visitor);
       allMetaPhrases = [];
       childToParent = {};
@@ -241,7 +252,11 @@ export default function Transform({ types: t }: { types: typeof BabelTypes }) {
        * );
        */
       CallExpression(path: NodePath<CallExpression>) {
-        const visitor = this;
+        const visitor = toVisitor(this) ? this : null;
+        if (!visitor) {
+          return null;
+        }
+
         const fileSource = visitor.file.code;
         const pluginOptions: PluginOptions = visitor.opts;
 
@@ -336,19 +351,17 @@ Transform.getFbtElementNodes = (): Array<PlainFbtNode> => {
         ? toPlainFbtNodeTree(fbtNode, phraseToIndexMap)
         : null
     )
-    .filter(Boolean);
+    .filter((node): node is PlainFbtNode => node != null);
 };
 
-function initExtraOptions(state) {
-  validFbtExtraOptions = Object.freeze(state.opts.extraOptions || {});
-}
-
-function initDefaultOptions(state) {
+function initDefaultOptions(state: {
+  file: { ast: { comments: ReadonlyArray<{ value: string }> } };
+}) {
   defaultOptions = {};
   const comment = state.file.ast.comments[0];
   const docblock = (comment && comment.value) || '';
   const fbtDocblockOptions = parseDocblock(docblock).fbt;
-  if (fbtDocblockOptions) {
+  if (fbtDocblockOptions && typeof fbtDocblockOptions === 'string') {
     defaultOptions = JSON.parse(fbtDocblockOptions);
     Object.keys(defaultOptions).forEach((o) => checkOption(o, ValidFbtOptions));
   }

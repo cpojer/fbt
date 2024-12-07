@@ -24,20 +24,13 @@ export function buildCollectFbtOutput(
   >,
   options: {
     genFbtNodes: boolean;
-    terse: boolean;
   }
 ): CollectFbtOutput {
   return {
-    phrases: packagers
-      .reduce(
-        (phrases, packager) => packager.pack(phrases),
-        fbtCollector.getPhrases()
-      )
-      .map((phrase) => ({
-        ...phrase,
-        // using `undefined` so that the field is not outputted by JSON.stringify
-        jsfbt: options.terse ? undefined : phrase.jsfbt,
-      })),
+    phrases: packagers.reduce(
+      (phrases, packager) => packager.pack(phrases),
+      fbtCollector.getPhrases()
+    ),
     childParentMappings: fbtCollector.getChildParentMappings(),
     fbtElementNodes: options.genFbtNodes
       ? fbtCollector.getFbtElementNodes()

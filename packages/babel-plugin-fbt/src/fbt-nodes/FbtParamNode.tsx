@@ -157,7 +157,6 @@ export default class FbtParamNode extends FbtNode<
       this.getArgsForStringVariationCalc().forEach((expectedArg) => {
         const svArg = argsMap.get(this);
         invariant(
-          // $FlowExpectedError[method-unbinding] We're just comparing methods by reference
           svArg.constructor === expectedArg.constructor,
           'Expected SVArgument instance of %s but got %s instead: %s',
           expectedArg.constructor.name || 'unknown',
@@ -173,7 +172,7 @@ export default class FbtParamNode extends FbtNode<
 
   override getFbtRuntimeArg(): CallExpression {
     const { gender, name, number, value } = this.options;
-    let variationValues: Array<Expression>;
+    let variationValues: Array<Expression> | null = null;
 
     if (number != null) {
       variationValues = [
@@ -192,7 +191,7 @@ export default class FbtParamNode extends FbtNode<
         stringLiteral(name),
         value,
         variationValues ? arrayExpression(variationValues) : null,
-      ].filter(Boolean)
+      ].filter((node): node is Expression => node != null)
     );
   }
 

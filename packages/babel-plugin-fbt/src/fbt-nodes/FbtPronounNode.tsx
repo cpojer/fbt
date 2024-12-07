@@ -128,8 +128,7 @@ export default class FbtPronounNode extends FbtNode<
       const word = getData(
         svArgValue === GENDER_ANY
           ? GenderConstEnum.UNKNOWN_PLURAL
-          : // $FlowExpectedError(incompatible-cast) We type-checked for `GENDER_ANY` just above
-            (svArgValue as GenderConstEnum),
+          : (svArgValue as GenderConstEnum),
         options.type
       );
       invariant(
