@@ -2,15 +2,18 @@ import {
   arrayExpression,
   CallExpression,
   Expression,
+  isCallExpression,
   isExpression,
   isStringLiteral,
+  Node,
   numericLiteral,
   stringLiteral,
 } from '@babel/types';
 import invariant from 'invariant';
 import nullthrows from 'nullthrows';
 import type { ParamVariationType } from '../../../fbt/src/FbtRuntimeTypes';
-import { ValidParamOptions } from '../FbtConstants';
+import { JSModuleNameType, ValidParamOptions } from '../FbtConstants';
+import FbtNodeChecker from '../FbtNodeChecker';
 import type {
   BabelNodeCallExpressionArgument,
   CallExpressionArg,
@@ -18,7 +21,6 @@ import type {
 import {
   collectOptionsFromFbtConstruct,
   createFbtRuntimeArgCallExpression,
-  enforceBabelNodeExpression,
   errorAt,
   varDump,
 } from '../FbtUtil';
@@ -30,11 +32,7 @@ import {
 } from './FbtArguments';
 import FbtNode from './FbtNode';
 import { FbtNodeType } from './FbtNodeType';
-import type { FromBabelNodeFunctionArgs } from './FbtNodeUtil';
-import {
-  createInstanceFromFbtConstructCallsite,
-  tokenNameToTextPattern,
-} from './FbtNodeUtil';
+import { tokenNameToTextPattern } from './FbtNodeUtil';
 
 type Options = {
   gender?: Expression | null | undefined; // Represents the `gender`,
@@ -54,6 +52,20 @@ const ParamVariation: ParamVariationType = {
   number: 0,
   gender: 1,
 };
+
+function enforceBabelNodeExpression(
+  value: Node | string | null,
+  valueDesc?: string | null
+): Expression {
+  invariant(
+    value != null && typeof value !== 'string' && isExpression(value),
+    '%sExpected BabelNodeExpression value instead of %s (%s)',
+    valueDesc ? valueDesc + ' - ' : '',
+    varDump(value),
+    typeof value
+  );
+  return value;
+}
 
 /**
  * Represents an <fbt:param> or fbt.param() construct.
@@ -75,11 +87,16 @@ export default class FbtParamNode extends FbtNode<
         ValidParamOptions
       );
       const [arg0, arg1] = this.getCallNodeArguments() || [];
-      const gender = enforceBabelNodeExpression.orNull(rawOptions.gender);
+      const gender =
+        rawOptions.gender != null && typeof rawOptions.gender !== 'boolean'
+          ? enforceBabelNodeExpression(rawOptions.gender)
+          : null;
       const number =
         typeof rawOptions.number === 'boolean'
           ? rawOptions.number
-          : enforceBabelNodeExpression.orNull(rawOptions.number);
+          : rawOptions.number != null
+          ? enforceBabelNodeExpression(rawOptions.number)
+          : null;
 
       invariant(
         number !== false,
@@ -116,15 +133,25 @@ export default class FbtParamNode extends FbtNode<
     }
   }
 
-  /**
-   * Create a new class instance given a BabelNode root node.
-   * If that node is incompatible, we'll just return `null`.
-   */
   static fromBabelNode({
     moduleName,
     node,
-  }: FromBabelNodeFunctionArgs): FbtParamNode | null | undefined {
-    return createInstanceFromFbtConstructCallsite(moduleName, node, this);
+  }: {
+    moduleName: JSModuleNameType;
+    node: Expression;
+  }): FbtParamNode | null | undefined {
+    if (!isCallExpression(node)) {
+      return null;
+    }
+
+    const checker = FbtNodeChecker.forModule(moduleName);
+    const constructName = checker.getFbtConstructNameFromFunctionCall(node);
+    return constructName === FbtParamNode.type
+      ? new FbtParamNode({
+          moduleName,
+          node,
+        })
+      : null;
   }
 
   override getArgsForStringVariationCalc(): ReadonlyArray<
@@ -202,6 +229,8 @@ export default class FbtParamNode extends FbtNode<
     if (gender != null) {
       return { gender };
     }
-    return isExpression(number) ? { number } : {};
+    return typeof number !== 'boolean' && isExpression(number)
+      ? { number }
+      : {};
   }
 }

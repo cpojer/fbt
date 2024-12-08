@@ -29,9 +29,9 @@ export type Options = Readonly<{
   strict: boolean;
 }>;
 
-export type LocaleToHashToTranslationResult = Readonly<{
+export type LocaleToHashToTranslationResult = {
   [fbLocale: string]: Partial<Record<PatternHash, TranslationResult>>;
-}>;
+};
 
 /** Phrases translated for a specific locale */
 type TranslatedGroup = Readonly<{
@@ -110,9 +110,10 @@ function processGroups(
     return translatedGroups;
   }
 
-  const localeToHashToFbt: Record<string, any> = {};
+  const localeToHashToFbt: LocaleToHashToTranslationResult = {};
   for (const group of translatedGroups) {
-    const hashToFbt = (localeToHashToFbt[group['fb-locale']] = {});
+    const hashToFbt: Partial<Record<string, TranslationResult>> =
+      (localeToHashToFbt[group['fb-locale']] = {});
     phrases.forEach((phrase, idx) => {
       const translatedFbt = group.translatedPhrases[idx];
       const jsfbt = nullthrows(

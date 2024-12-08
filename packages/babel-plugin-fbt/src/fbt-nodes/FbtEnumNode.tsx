@@ -1,6 +1,8 @@
 import {
   CallExpression,
+  Expression,
   isArrayExpression,
+  isCallExpression,
   isIdentifier,
   isNumericLiteral,
   isObjectExpression,
@@ -54,8 +56,12 @@ export default class FbtEnumNode extends FbtNode<
     node,
   }: {
     moduleName: JSModuleNameType;
-    node: CallExpression;
+    node: Expression;
   }): FbtEnumNode | null {
+    if (!isCallExpression(node)) {
+      return null;
+    }
+
     const checker = FbtNodeChecker.forModule(moduleName);
     const constructName = checker.getFbtConstructNameFromFunctionCall(node);
     return constructName === FbtEnumNode.type

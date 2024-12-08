@@ -146,7 +146,7 @@ export function validateNamespacedFbtElement(
   return handlerName;
 }
 
-function isBabelNodeCallExpressionArg(value: Node): boolean {
+function isBabelNodeCallExpressionArg(value: Node): value is CallExpressionArg {
   return (
     isExpression(value) ||
     isSpreadElement(value) ||
@@ -885,22 +885,8 @@ export function enforceBabelNode(
   return value;
 }
 
-export function enforceBabelNodeExpression(
-  value: Node | undefined | null,
-  valueDesc?: string | null
-): Expression {
-  invariant(
-    isExpression(value),
-    '%sExpected BabelNodeExpression value instead of %s (%s)',
-    valueDesc ? valueDesc + ' - ' : '',
-    varDump(value),
-    typeof value
-  );
-  return value;
-}
-
 export function enforceBabelNodeCallExpressionArg(
-  value: BabelNodeCallExpressionArgument | undefined | null,
+  value: Node | undefined | null,
   valueDesc?: string | null
 ): CallExpressionArg {
   invariant(
@@ -915,7 +901,7 @@ export function enforceBabelNodeCallExpressionArg(
 
 export function enforceStringEnum<K extends string>(
   value: string,
-  keys: Partial<Record<K, any>>,
+  keys: Partial<Record<K, unknown>>,
   valueDesc?: string | null
 ): K {
   invariant(
@@ -948,14 +934,6 @@ const enforceBabelNodeOrNull: (
   valueDesc?: string | null | undefined
 ) => Node | null | undefined = nullableTypeCheckerFactory(enforceBabelNode);
 enforceBabelNode.orNull = enforceBabelNodeOrNull;
-
-const enforceBabelNodeExpressionOrNull: (
-  value: Node | undefined | null,
-  valueDesc?: string | null | undefined
-) => Expression | null | undefined = nullableTypeCheckerFactory(
-  enforceBabelNodeExpression
-);
-enforceBabelNodeExpression.orNull = enforceBabelNodeExpressionOrNull;
 
 enforceBabelNodeCallExpressionArg.orNull = nullableTypeCheckerFactory(
   enforceBabelNodeCallExpressionArg

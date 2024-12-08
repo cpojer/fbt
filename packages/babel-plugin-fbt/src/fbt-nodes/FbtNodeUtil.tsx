@@ -1,7 +1,6 @@
 import { Node } from '@babel/types';
 import invariant from 'invariant';
 import type { JSModuleNameType } from '../FbtConstants';
-import FbtNodeChecker from '../FbtNodeChecker';
 import { errorAt, normalizeSpaces, varDump } from '../FbtUtil';
 import type { TokenAliases } from '../index';
 import type { StringVariationArgsMap } from './FbtArguments';
@@ -9,7 +8,6 @@ import FbtElementNode from './FbtElementNode';
 import type FbtImplicitParamNodeType from './FbtImplicitParamNode';
 import FbtImplicitParamNode from './FbtImplicitParamNode';
 import type { AnyFbtNode, FbtChildNode, PlainFbtNode } from './FbtNode';
-import type { FbtNodeType } from './FbtNodeType';
 /**
  * This function gets the mapping from a `FbtSameParamNode`'s token name to
  * the `FbtNode` that shares the same token name.
@@ -40,27 +38,6 @@ export type FromBabelNodeFunctionArgs = {
   moduleName: JSModuleNameType;
   node: Node;
 };
-
-export function createInstanceFromFbtConstructCallsite<N extends AnyFbtNode>(
-  moduleName: JSModuleNameType,
-  node: Node,
-  Constructor: (new (options: {
-    moduleName: JSModuleNameType;
-    node: Node;
-  }) => N) &
-    Readonly<{
-      type: FbtNodeType;
-    }>
-): N | null | undefined {
-  const checker = FbtNodeChecker.forModule(moduleName);
-  const constructName = checker.getFbtConstructNameFromFunctionCall(node);
-  return constructName === Constructor.type
-    ? new Constructor({
-        moduleName,
-        node,
-      })
-    : null;
-}
 
 /**
  * Returns the closest ancestor node of type: FbtElementNode | FbtImplicitParamNode
@@ -233,7 +210,7 @@ export function buildFbtNodeMapForSameParam(
   // Importing this module only here to avoid dependency cycle
   const tokenNameToFbtNode: Record<string, any> = {};
   const tokenNameToSameParamNode: {
-    [key: string]: typeof FbtSameParamNode;
+    [key: string]: FbtSameParamNode;
   } = {};
   runOnNestedChildren(fbtNode, (child) => {
     if (child instanceof FbtSameParamNode) {

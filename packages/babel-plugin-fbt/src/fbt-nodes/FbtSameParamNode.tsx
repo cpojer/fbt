@@ -1,14 +1,17 @@
-import { CallExpression, isStringLiteral } from '@babel/types';
+import {
+  CallExpression,
+  Expression,
+  isCallExpression,
+  isStringLiteral,
+} from '@babel/types';
 import invariant from 'invariant';
+import { JSModuleNameType } from '../FbtConstants';
+import FbtNodeChecker from '../FbtNodeChecker';
 import { errorAt } from '../FbtUtil';
 import type { StringVariationArgsMap } from './FbtArguments';
 import FbtNode from './FbtNode';
 import { FbtNodeType } from './FbtNodeType';
-import type { FromBabelNodeFunctionArgs } from './FbtNodeUtil';
-import {
-  createInstanceFromFbtConstructCallsite,
-  tokenNameToTextPattern,
-} from './FbtNodeUtil';
+import { tokenNameToTextPattern } from './FbtNodeUtil';
 
 type Options = {
   name: string; // Name of the string token
@@ -26,15 +29,24 @@ export default class FbtSameParamNode extends FbtNode<
 > {
   static readonly type: FbtNodeType = FbtNodeType.SameParam;
 
-  /**
-   * Create a new class instance given a BabelNode root node.
-   * If that node is incompatible, we'll just return `null`.
-   */
   static fromBabelNode({
     moduleName,
     node,
-  }: FromBabelNodeFunctionArgs): FbtSameParamNode | null | undefined {
-    return createInstanceFromFbtConstructCallsite(moduleName, node, this);
+  }: {
+    moduleName: JSModuleNameType;
+    node: Expression;
+  }): FbtSameParamNode | null | undefined {
+    if (!isCallExpression(node)) {
+      return null;
+    }
+    const checker = FbtNodeChecker.forModule(moduleName);
+    const constructName = checker.getFbtConstructNameFromFunctionCall(node);
+    return constructName === FbtSameParamNode.type
+      ? new FbtSameParamNode({
+          moduleName,
+          node,
+        })
+      : null;
   }
 
   override getOptions(): Options {

@@ -155,7 +155,13 @@ export abstract class StringVariationArg<
   }
 
   cloneWithValue(value: Value, isCollapsible: boolean): this {
-    return new this.constructor(
+    return new (this.constructor as new (
+      fbtNode: AnyFbtNode,
+      node: B,
+      candidateValues: ReadonlyArray<Value>,
+      value?: Value | null,
+      isCollapsible?: boolean
+    ) => this)(
       this.fbtNode,
       this.node,
       this.candidateValues,

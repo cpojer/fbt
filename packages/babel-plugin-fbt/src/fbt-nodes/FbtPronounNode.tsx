@@ -1,6 +1,8 @@
 import {
   CallExpression,
+  Expression,
   identifier,
+  isCallExpression,
   isStringLiteral,
   numericLiteral,
   objectExpression,
@@ -8,12 +10,13 @@ import {
 } from '@babel/types';
 import invariant from 'invariant';
 import nullthrows from 'nullthrows';
-import type { ValidPronounUsagesKey } from '../FbtConstants';
+import type { JSModuleNameType, ValidPronounUsagesKey } from '../FbtConstants';
 import {
   ValidPronounOptions,
   ValidPronounUsages,
   ValidPronounUsagesKeys,
 } from '../FbtConstants';
+import FbtNodeChecker from '../FbtNodeChecker';
 import type { CallExpressionArg } from '../FbtUtil';
 import {
   collectOptionsFromFbtConstruct,
@@ -30,8 +33,6 @@ import type { StringVariationArgsMap } from './FbtArguments';
 import { GenderStringVariationArg } from './FbtArguments';
 import FbtNode from './FbtNode';
 import { FbtNodeType } from './FbtNodeType';
-import type { FromBabelNodeFunctionArgs } from './FbtNodeUtil';
-import { createInstanceFromFbtConstructCallsite } from './FbtNodeUtil';
 
 type Options = {
   // If true, capitalize the pronoun text
@@ -61,15 +62,24 @@ export default class FbtPronounNode extends FbtNode<
 > {
   static readonly type: FbtNodeType = FbtNodeType.Pronoun;
 
-  /**
-   * Create a new class instance given a BabelNode root node.
-   * If that node is incompatible, we'll just return `null`.
-   */
   static fromBabelNode({
     moduleName,
     node,
-  }: FromBabelNodeFunctionArgs): FbtPronounNode | null | undefined {
-    return createInstanceFromFbtConstructCallsite(moduleName, node, this);
+  }: {
+    moduleName: JSModuleNameType;
+    node: Expression;
+  }): FbtPronounNode | null | undefined {
+    if (!isCallExpression(node)) {
+      return null;
+    }
+    const checker = FbtNodeChecker.forModule(moduleName);
+    const constructName = checker.getFbtConstructNameFromFunctionCall(node);
+    return constructName === FbtPronounNode.type
+      ? new FbtPronounNode({
+          moduleName,
+          node,
+        })
+      : null;
   }
 
   override getOptions(): Options {

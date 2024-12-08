@@ -324,9 +324,10 @@ export default class FbtImplicitParamNode
     setUniqueToken(source.node, this.moduleName, name, this._tokenSet);
   }
 
-  override toJSON(): unknown {
-    const ret = super.toJSON();
-    return FbtElementNode.__compactTokenSet(ret);
+  override toJSON() {
+    return FbtElementNode.__compactTokenSet(
+      super.toJSON() as Record<string, unknown>
+    );
   }
 
   override toPlainFbtNode(): PlainFbtNode {

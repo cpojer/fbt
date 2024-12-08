@@ -1,11 +1,19 @@
-import { CallExpression, isStringLiteral, stringLiteral } from '@babel/types';
+import {
+  CallExpression,
+  Expression,
+  isCallExpression,
+  isStringLiteral,
+  stringLiteral,
+} from '@babel/types';
 import invariant from 'invariant';
 import nullthrows from 'nullthrows';
 import {
+  JSModuleNameType,
   PLURAL_PARAM_TOKEN,
   ShowCountKeys,
   ValidPluralOptions,
 } from '../FbtConstants';
+import FbtNodeChecker from '../FbtNodeChecker';
 import type { CallExpressionArg } from '../FbtUtil';
 import {
   collectOptionsFromFbtConstruct,
@@ -21,11 +29,7 @@ import type { StringVariationArgsMap } from './FbtArguments';
 import { NumberStringVariationArg } from './FbtArguments';
 import FbtNode from './FbtNode';
 import { FbtNodeType } from './FbtNodeType';
-import type { FromBabelNodeFunctionArgs } from './FbtNodeUtil';
-import {
-  createInstanceFromFbtConstructCallsite,
-  tokenNameToTextPattern,
-} from './FbtNodeUtil';
+import { tokenNameToTextPattern } from './FbtNodeUtil';
 
 type Options = {
   // Represents the number used for determining the plural case at runtime
@@ -51,15 +55,25 @@ export default class FbtPluralNode extends FbtNode<
 > {
   static readonly type: FbtNodeType = FbtNodeType.Plural;
 
-  /**
-   * Create a new class instance given a BabelNode root node.
-   * If that node is incompatible, we'll just return `null`.
-   */
   static fromBabelNode({
     moduleName,
     node,
-  }: FromBabelNodeFunctionArgs): FbtPluralNode | null | undefined {
-    return createInstanceFromFbtConstructCallsite(moduleName, node, this);
+  }: {
+    moduleName: JSModuleNameType;
+    node: Expression;
+  }): FbtPluralNode | null | undefined {
+    if (!isCallExpression(node)) {
+      return null;
+    }
+
+    const checker = FbtNodeChecker.forModule(moduleName);
+    const constructName = checker.getFbtConstructNameFromFunctionCall(node);
+    return constructName === FbtPluralNode.type
+      ? new FbtPluralNode({
+          moduleName,
+          node,
+        })
+      : null;
   }
 
   override getOptions(): Options {
@@ -76,11 +90,13 @@ export default class FbtPluralNode extends FbtNode<
         '`count`, the second function argument'
       );
       const showCount =
-        enforceStringEnum.orNull(
-          rawOptions.showCount,
-          ValidPluralOptions.showCount,
-          '`showCount` option'
-        ) || ShowCountKeys.no;
+        (typeof rawOptions.showCount === 'string' &&
+          enforceStringEnum.orNull(
+            rawOptions.showCount,
+            ValidPluralOptions.showCount,
+            '`showCount` option'
+          )) ||
+        ShowCountKeys.no;
       const name =
         enforceString.orNull(rawOptions.name, '`name` option') ||
         (showCount !== ShowCountKeys.no ? PLURAL_PARAM_TOKEN : null);
@@ -89,10 +105,15 @@ export default class FbtPluralNode extends FbtNode<
         many: enforceString.orNull(rawOptions.many, '`many` option'),
         name,
         showCount,
-        value: enforceBabelNodeCallExpressionArg.orNull(
-          rawOptions.value,
-          '`value` option'
-        ),
+        value:
+          rawOptions.value != null &&
+          typeof rawOptions.value !== 'string' &&
+          typeof rawOptions.value !== 'boolean'
+            ? enforceBabelNodeCallExpressionArg.orNull(
+                rawOptions.value,
+                '`value` option'
+              )
+            : null,
       };
     } catch (error: any) {
       throw errorAt(this.node, error);

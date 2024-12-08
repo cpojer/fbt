@@ -4,6 +4,7 @@ import {
   identifier,
   isArrayExpression,
   isCallExpression,
+  isExpression,
   isJSXElement,
   isNode,
   isSpreadElement,
@@ -171,7 +172,12 @@ export default class FbtElementNode
         preserveWhitespace:
           enforceBoolean.orNull(rawOptions.preserveWhitespace) || false,
         project: enforceString(rawOptions.project || ''),
-        subject: enforceBabelNodeCallExpressionArg.orNull(rawOptions.subject),
+        subject:
+          typeof rawOptions.subject !== 'string' &&
+          typeof rawOptions.subject !== 'boolean' &&
+          isExpression(rawOptions.subject)
+            ? enforceBabelNodeCallExpressionArg.orNull(rawOptions.subject)
+            : null,
         extraOptions,
       };
     } catch (error: any) {
@@ -297,7 +303,7 @@ export default class FbtElementNode
     validExtraOptions,
   }: {
     moduleName: JSModuleNameType;
-    node: Node;
+    node: Expression;
     validExtraOptions: Readonly<FbtOptionConfig>;
   }): FbtElementNode | null | undefined {
     if (!isCallExpression(node)) {

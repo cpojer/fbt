@@ -46,15 +46,15 @@ export function onEachLeaf(
 export function mapLeaves<NewLeaf>(
   tree: Readonly<TableJSFBTTree>,
   convertLeaf: (leaf: Readonly<TableJSFBTTreeLeaf>) => NewLeaf
-): NewLeaf | Partial<Record<FbtTableKey, NewLeaf>> {
+): NewLeaf {
   const leaflet = coerceToTableJSFBTTreeLeaf(tree);
   if (leaflet != null) {
     return convertLeaf(leaflet);
   }
 
-  const newFbtTree: Partial<Record<FbtTableKey, NewLeaf>> = {};
+  const newFbtTree: Record<FbtTableKey, NewLeaf> = {};
   for (const tableKey in tree) {
     newFbtTree[tableKey] = mapLeaves(tree[tableKey], convertLeaf);
   }
-  return newFbtTree;
+  return newFbtTree as NewLeaf;
 }

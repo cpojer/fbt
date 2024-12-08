@@ -1,5 +1,13 @@
-import { CallExpression, isStringLiteral, stringLiteral } from '@babel/types';
+import {
+  CallExpression,
+  Expression,
+  isCallExpression,
+  isStringLiteral,
+  stringLiteral,
+} from '@babel/types';
 import invariant from 'invariant';
+import { JSModuleNameType } from '../FbtConstants';
+import FbtNodeChecker from '../FbtNodeChecker';
 import type { CallExpressionArg } from '../FbtUtil';
 import {
   createFbtRuntimeArgCallExpression,
@@ -11,11 +19,7 @@ import type { StringVariationArgsMap } from './FbtArguments';
 import { GenderStringVariationArg } from './FbtArguments';
 import FbtNode from './FbtNode';
 import { FbtNodeType } from './FbtNodeType';
-import type { FromBabelNodeFunctionArgs } from './FbtNodeUtil';
-import {
-  createInstanceFromFbtConstructCallsite,
-  tokenNameToTextPattern,
-} from './FbtNodeUtil';
+import { tokenNameToTextPattern } from './FbtNodeUtil';
 
 type Options = {
   // `BabelNode` representing the `gender` of the fbt:name's value
@@ -63,15 +67,25 @@ export default class FbtNameNode extends FbtNode<
     }
   }
 
-  /**
-   * Create a new class instance given a BabelNode root node.
-   * If that node is incompatible, we'll just return `null`.
-   */
   static fromBabelNode({
     moduleName,
     node,
-  }: FromBabelNodeFunctionArgs): FbtNameNode | null | undefined {
-    return createInstanceFromFbtConstructCallsite(moduleName, node, this);
+  }: {
+    moduleName: JSModuleNameType;
+    node: Expression;
+  }): FbtNameNode | null | undefined {
+    if (!isCallExpression(node)) {
+      return null;
+    }
+
+    const checker = FbtNodeChecker.forModule(moduleName);
+    const constructName = checker.getFbtConstructNameFromFunctionCall(node);
+    return constructName === FbtNameNode.type
+      ? new FbtNameNode({
+          moduleName,
+          node,
+        })
+      : null;
   }
 
   override getArgsForStringVariationCalc(): ReadonlyArray<GenderStringVariationArg> {

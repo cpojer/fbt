@@ -175,16 +175,13 @@ export type PlainFbtNode = {
  */
 export default class FbtNode<
   SVArgument extends AnyStringVariationArg | never = never,
-  CurBabelNode extends Node = Node,
+  CurrentNode extends Node = Node,
   MaybeChildNode extends FbtChildNode | null | undefined = null, // See related docs of this.options
   Options extends Record<any, any> | null | undefined = null
 > {
   readonly moduleName: JSModuleNameType;
   readonly children: Array<MaybeChildNode>;
-  /**
-   * Reference to the BabelNode that this fbt node represents
-   */
-  readonly node: CurBabelNode;
+  readonly node: CurrentNode;
   readonly nodeChecker: FbtNodeChecker;
   parent: AnyFbtNode | null | undefined;
   /**
@@ -204,7 +201,7 @@ export default class FbtNode<
   }: {
     children?: ReadonlyArray<MaybeChildNode> | null | undefined;
     moduleName: JSModuleNameType;
-    node: CurBabelNode;
+    node: CurrentNode;
     parent?: AnyFbtNode | null | undefined;
     validExtraOptions?: Readonly<FbtOptionConfig>;
   }) {
@@ -374,17 +371,17 @@ export default class FbtNode<
   /**
    * Returns the first parent FbtNode that is an instance of the given class.
    */
-  getFirstAncestorOfType<N>(
-    ancestorConstructor: new (x: {
+  getFirstAncestorOfType<N extends Node, Class>(
+    AncestorConstructor: new (x: {
       children?: ReadonlyArray<MaybeChildNode> | null | undefined;
       moduleName: JSModuleNameType;
-      node: CurBabelNode;
+      node: N;
       parent?: AnyFbtNode | null | undefined;
       validExtraOptions?: Readonly<FbtOptionConfig>;
-    }) => N
-  ): N | null | undefined {
+    }) => Class
+  ): Class | null | undefined {
     for (let { parent } = this; parent != null; parent = parent.parent) {
-      if (parent instanceof ancestorConstructor) {
+      if (parent instanceof AncestorConstructor) {
         return parent;
       }
     }
